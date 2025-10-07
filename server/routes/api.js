@@ -7,6 +7,20 @@ const axios = require('axios');
 
 const router = express.Router();
 
+// Simple health check at the start
+router.get('/status', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CodeClarity API is running',
+    timestamp: new Date().toISOString(),
+    services: {
+      openai: !!openai,
+      gemini: !!genAI,
+      server: 'healthy'
+    }
+  });
+});
+
 // Initialize OpenAI (with error handling)
 let openai = null;
 try {
