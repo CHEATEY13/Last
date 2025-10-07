@@ -204,7 +204,20 @@ async function callOpenAI(prompt, code, language, targetLanguage = null) {
         };
       }
       
-      return { error: "Failed to parse AI response", rawResponse: response };
+      // Create a fallback structured response for any prompt type
+      return {
+        language: language,
+        overview: "AI response received but could not be parsed as structured JSON",
+        lineByLineAnalysis: [{
+          line: "Response parsing failed",
+          explanation: "The AI provided a response but it wasn't in the expected JSON format. This might be due to API limitations or response formatting issues."
+        }],
+        output: "Unable to determine output due to parsing error",
+        summary: "AI analysis was attempted but the response format needs adjustment. Consider checking your API configuration.",
+        suggestions: ["Check API key configuration", "Try with a simpler code example", "Review the raw response for insights"],
+        rawResponse: response.substring(0, 1000) + (response.length > 1000 ? '...' : ''),
+        error: "Response parsing failed"
+      };
     }
   } catch (error) {
     console.error('❌ OpenAI API error:', error.message);
@@ -277,7 +290,19 @@ function getDemoResponse(prompt, code, language, targetLanguage = null) {
     };
   }
   
-  return { error: "Unknown prompt type", rawResponse: "Demo mode active" };
+  // Default fallback for any unrecognized prompt type
+  const lines = code.split('\n').filter(line => line.trim());
+  return {
+    language: language,
+    overview: `This appears to be ${language} code with ${lines.length} lines. Demo mode is active - add your API keys for full AI analysis.`,
+    lineByLineAnalysis: lines.slice(0, 3).map(line => ({
+      line: line.trim(),
+      explanation: `This line contains ${language} code. Add your API keys for detailed analysis.`
+    })),
+    output: "Demo mode - add API keys for accurate output prediction",
+    summary: `Demo analysis for ${language} code. Add your OpenAI or Gemini API keys to get comprehensive AI-powered insights.`,
+    suggestions: ["Add your OpenAI API key for detailed code analysis", "Add your Gemini API key for debugging features"]
+  };
 }
 
 // Helper function to call Gemini API for debugging
