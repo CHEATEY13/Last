@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeClarity - AI-Powered Code Analysis</title>
+    <meta name="description" content="Analyze, debug, and translate your code with AI-powered insights">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <!-- Locomotive Scroll -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/locomotive-scroll@4.1.4/dist/locomotive-scroll.css">
+    <script src="https://cdn.jsdelivr.net/npm/locomotive-scroll@4.1.4/dist/locomotive-scroll.min.js"></script>
+    
+    <!-- jsPDF for export functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'light-gray': '#f0f8ff',
+                        'soft-blue': '#87ceeb',
+                        'light-purple': '#d8bfd8',
+                        'pastel-green': '#90ee90',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-inter bg-gradient-to-br from-light-gray via-white to-soft-blue min-h-screen" data-scroll-container>
+    
+    <!-- Preloader -->
+    <div class="preloader fixed inset-0 bg-gradient-to-br from-soft-blue to-light-purple z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="logo text-4xl font-bold text-white mb-8">
+                <span class="glow-text">CodeClarity</span>
+            </div>
+            <div class="progress-container w-64 h-2 bg-white/20 rounded-full overflow-hidden">
+                <div class="progress-bar w-0 h-full bg-white rounded-full"></div>
+            </div>
+            <p class="text-white/80 mt-4">Loading CodeClarity...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-white/20">
+        <nav class="container mx-auto px-6 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="logo">
+                <a href="#" class="text-2xl font-bold bg-gradient-to-r from-soft-blue to-light-purple bg-clip-text text-transparent">
+                    CodeClarity
+                </a>
+            </div>
+            
+            <!-- Desktop Navigation -->
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#home" class="nav-link text-gray-700 hover:text-soft-blue transition-colors">Home</a>
+                <a href="#services" class="nav-link text-gray-700 hover:text-soft-blue transition-colors">Services</a>
+                <a href="#about" class="nav-link text-gray-700 hover:text-soft-blue transition-colors">About</a>
+                <a href="#contact" class="nav-link text-gray-700 hover:text-soft-blue transition-colors">Feedback</a>
+                <a href="#contact" class="nav-link text-gray-700 hover:text-soft-blue transition-colors">Contact</a>
+            </div>
+            
+            <!-- Auth Button -->
+            <div class="flex items-center space-x-4">
+                <button id="authBtn" class="auth-btn bg-gradient-to-r from-soft-blue to-light-purple text-white px-6 py-2 rounded-full hover:shadow-lg transition-all duration-300">
+                    Sign In
+                </button>
+                
+                <!-- Mobile Menu Button -->
+                <button id="mobileMenuBtn" class="md:hidden text-gray-700">
+                    <i class="ph ph-list text-2xl"></i>
+                </button>
+            </div>
+        </nav>
+        
+        <!-- Mobile Navigation -->
+        <div id="mobileMenu" class="md:hidden bg-white/95 backdrop-blur-md border-t border-white/20 hidden">
+            <div class="container mx-auto px-6 py-4 space-y-4">
+                <a href="#home" class="block text-gray-700 hover:text-soft-blue transition-colors">Home</a>
+                <a href="#services" class="block text-gray-700 hover:text-soft-blue transition-colors">Services</a>
+                <a href="#about" class="block text-gray-700 hover:text-soft-blue transition-colors">About</a>
+                <a href="#contact" class="block text-gray-700 hover:text-soft-blue transition-colors">Feedback</a>
+                <a href="#contact" class="block text-gray-700 hover:text-soft-blue transition-colors">Contact</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section id="home" class="hero-section min-h-screen flex items-center justify-center relative overflow-hidden" data-scroll-section>
+            <!-- 3D Background -->
+            <div class="absolute inset-0 z-0">
+                <iframe 
+                    src='https://my.spline.design/advancedlightandshadowblurmaterial-Z8TT7wmQxKSYuwLB7QgDNeHH/' 
+                    frameborder='0' 
+                    width='100%' 
+                    height='100%'
+                    class="spline-iframe">
+                </iframe>
+            </div>
+            
+            <!-- Hero Content -->
+            <div class="hero-content relative z-10 text-center px-6" data-scroll data-scroll-speed="2">
+                <!-- Welcome Text -->
+                <div class="mb-16">
+                    <h1 class="hero-title text-5xl md:text-7xl font-bold mb-6">
+                        <span class="hero-text-line-1 text-gray-800 block">Hi, Welcome to</span>
+                        <span class="hero-text-line-2 glow-text bg-gradient-to-r from-pastel-green to-soft-blue bg-clip-text text-transparent block">
+                            CodeClarity
+                        </span>
+                    </h1>
+                    <p class="hero-subtitle text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                        Unlock the power of AI to analyze, debug, refactor, and translate your code. Turn complex algorithms into clear, understandable explanations.
+                    </p>
+                    <button class="cta-btn bg-gradient-to-r from-soft-blue to-light-purple text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-2xl transition-all duration-300">
+                        Let's Get Started
+                    </button>
+                </div>
+                
+                <!-- Feature Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                    <!-- AI Code Analysis -->
+                    <div class="feature-card bg-white/80 backdrop-blur-md rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300" data-scroll data-scroll-speed="0.5">
+                        <div class="w-12 h-12 bg-gradient-to-r from-soft-blue to-light-purple rounded-lg flex items-center justify-center mx-auto mb-3">
+                            <i class="ph ph-magnifying-glass text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-gray-800 mb-1">AI Code Analysis</h3>
+                    </div>
+                    
+                    <!-- Smart Debugging -->
+                    <div class="feature-card bg-white/80 backdrop-blur-md rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300" data-scroll data-scroll-speed="0.5">
+                        <div class="w-12 h-12 bg-gradient-to-r from-light-purple to-pastel-green rounded-lg flex items-center justify-center mx-auto mb-3">
+                            <i class="ph ph-bug text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-gray-800 mb-1">Smart Debugging</h3>
+                    </div>
+                    
+                    <!-- Language Translation -->
+                    <div class="feature-card bg-white/80 backdrop-blur-md rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300" data-scroll data-scroll-speed="0.5">
+                        <div class="w-12 h-12 bg-gradient-to-r from-pastel-green to-soft-blue rounded-lg flex items-center justify-center mx-auto mb-3">
+                            <i class="ph ph-translate text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-gray-800 mb-1">Language Translation</h3>
+                    </div>
+                    
+                    <!-- Code Refactoring -->
+                    <div class="feature-card bg-white/80 backdrop-blur-md rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300" data-scroll data-scroll-speed="0.5">
+                        <div class="w-12 h-12 bg-gradient-to-r from-soft-blue to-pastel-green rounded-lg flex items-center justify-center mx-auto mb-3">
+                            <i class="ph ph-code text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-gray-800 mb-1">Code Refactoring</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Floating Elements -->
+            <div class="glow-orb glow-orb-1 absolute top-1/4 left-1/4 w-32 h-32 bg-pastel-green/20 rounded-full blur-xl"></div>
+            <div class="glow-orb glow-orb-2 absolute top-3/4 right-1/4 w-24 h-24 bg-light-purple/20 rounded-full blur-xl"></div>
+            <div class="glow-orb glow-orb-3 absolute top-1/2 right-1/3 w-16 h-16 bg-soft-blue/20 rounded-full blur-xl"></div>
+        </section>
+
+        <!-- Code Functionality Section -->
+        <section id="services" class="code-section py-20 bg-white/50 backdrop-blur-sm" data-scroll-section>
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16" data-scroll data-scroll-speed="1">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                        Powerful Code Analysis
+                    </h2>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                        Upload your code and get instant AI-powered analysis, debugging, and translation
+                    </p>
+                </div>
+                
+                <div class="grid lg:grid-cols-2 gap-12 items-start">
+                    <!-- Left Panel - Input -->
+                    <div class="input-panel bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl" data-scroll data-scroll-speed="0.5">
+                        <h3 class="text-2xl font-semibold text-gray-800 mb-6">Input Your Code</h3>
+                        
+                        <!-- Language Selection -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Programming Language</label>
+                            <select id="languageSelect" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent">
+                                <option value="">Select Language...</option>
+                                <option value="JavaScript">JavaScript</option>
+                                <option value="Python">Python</option>
+                                <option value="Java">Java</option>
+                                <option value="C++">C++</option>
+                                <option value="C#">C#</option>
+                                <option value="Go">Go</option>
+                                <option value="Rust">Rust</option>
+                                <option value="TypeScript">TypeScript</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Code Input -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Your Code</label>
+                            <textarea 
+                                id="codeInput" 
+                                placeholder="Paste your code here..."
+                                class="w-full h-64 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent font-mono text-sm bg-gray-900 text-green-400"
+                                spellcheck="false"
+                            ></textarea>
+                        </div>
+                        
+                        <!-- File Upload -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Or Upload File</label>
+                            <input type="file" id="fileInput" accept=".js,.py,.java,.cpp,.cs,.go,.rs,.ts,.html,.css" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent">
+                        </div>
+                        
+                        <!-- Target Language for Translation -->
+                        <div class="mb-6 hidden" id="targetLanguageContainer">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Language</label>
+                            <select id="targetLanguageSelect" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent">
+                                <option value="">Select Target Language...</option>
+                                <option value="JavaScript">JavaScript</option>
+                                <option value="Python" selected>Python</option>
+                                <option value="Java">Java</option>
+                                <option value="C++">C++</option>
+                                <option value="C#">C#</option>
+                                <option value="Go">Go</option>
+                                <option value="Rust">Rust</option>
+                                <option value="TypeScript">TypeScript</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-4">
+                            <button id="analyzeBtn" class="action-btn bg-gradient-to-r from-soft-blue to-light-purple text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+                                <i class="ph ph-magnifying-glass"></i>
+                                Analyze
+                            </button>
+                            <button id="translateBtn" class="action-btn bg-gradient-to-r from-pastel-green to-soft-blue text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+                                <i class="ph ph-translate"></i>
+                                Translate
+                            </button>
+                            <button id="debugBtn" class="action-btn bg-gradient-to-r from-light-purple to-pastel-green text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+                                <i class="ph ph-bug"></i>
+                                Debug
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel - Output -->
+                    <div class="output-panel bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl" data-scroll data-scroll-speed="0.5">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-2xl font-semibold text-gray-800">Results</h3>
+                            <div class="export-buttons hidden space-x-2">
+                                <button id="copyBtn" class="export-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <i class="ph ph-copy"></i>
+                                    Copy
+                                </button>
+                                <button id="downloadTxtBtn" class="export-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <i class="ph ph-download"></i>
+                                    TXT
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="loadingState" class="hidden text-center py-12">
+                            <div class="animate-spin w-12 h-12 border-4 border-soft-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+                            <p class="text-gray-600">Processing your code...</p>
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div id="emptyState" class="text-center py-12 text-gray-500">
+                            <i class="ph ph-code text-6xl mb-4 opacity-50"></i>
+                            <p>Your analysis results will appear here</p>
+                        </div>
+                        
+                        <!-- Results Container -->
+                        <div id="resultsContainer" class="hidden">
+                            <div id="resultsContent" class="space-y-6">
+                                <!-- Dynamic content will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="about-section py-20 bg-gradient-to-r from-light-gray to-white" data-scroll-section>
+            <div class="container mx-auto px-6">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <!-- Image -->
+                    <div class="about-image" data-scroll data-scroll-speed="0.5">
+                        <div class="relative">
+                            <div class="bg-gradient-to-br from-soft-blue to-light-purple rounded-2xl p-8 shadow-2xl">
+                                <div class="bg-white/20 backdrop-blur-md rounded-xl p-6">
+                                    <i class="ph ph-code text-6xl text-white mb-4"></i>
+                                    <div class="space-y-2">
+                                        <div class="h-2 bg-white/40 rounded w-3/4"></div>
+                                        <div class="h-2 bg-white/40 rounded w-1/2"></div>
+                                        <div class="h-2 bg-white/40 rounded w-2/3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="about-content" data-scroll data-scroll-speed="1">
+                        <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+                            How CodeClarity Works
+                        </h2>
+                        <div class="space-y-6 text-lg text-gray-600">
+                            <p>
+                                CodeClarity uses advanced AI technology to understand your code and provide 
+                                intelligent insights. Whether you're a beginner learning to code or an 
+                                experienced developer debugging complex issues, our platform adapts to your needs.
+                            </p>
+                            <div class="space-y-4">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-8 h-8 bg-soft-blue rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                        <i class="ph ph-check text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-1">Smart Analysis</h4>
+                                        <p class="text-gray-600">Get line-by-line explanations and understand what your code does</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-4">
+                                    <div class="w-8 h-8 bg-light-purple rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                        <i class="ph ph-check text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-1">Bug Detection</h4>
+                                        <p class="text-gray-600">Find errors and get suggestions for fixes automatically</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-4">
+                                    <div class="w-8 h-8 bg-pastel-green rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                        <i class="ph ph-check text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-1">Language Translation</h4>
+                                        <p class="text-gray-600">Convert your code between different programming languages</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="contact-section py-20 bg-white/50 backdrop-blur-sm" data-scroll-section>
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16" data-scroll data-scroll-speed="1">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                        Get In Touch
+                    </h2>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                        Have questions or feedback? We'd love to hear from you
+                    </p>
+                </div>
+                
+                <div class="max-w-2xl mx-auto">
+                    <form id="contactForm" class="contact-form bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl" data-scroll data-scroll-speed="0.5">
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="form-group">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                                <input type="text" id="contactName" class="contact-input w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent transition-all duration-300" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" id="contactEmail" class="contact-input w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent transition-all duration-300" required>
+                            </div>
+                        </div>
+                        <div class="form-group mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                            <textarea id="contactMessage" rows="6" class="contact-input w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-soft-blue focus:border-transparent transition-all duration-300" required></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn w-full bg-gradient-to-r from-soft-blue to-light-purple text-white py-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                            Send Message
+                        </button>
+                    </form>
+                    
+                    <!-- Social Links -->
+                    <div class="social-links flex justify-center space-x-6 mt-12" data-scroll data-scroll-speed="0.5">
+                        <a href="#" class="social-link w-12 h-12 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-soft-blue hover:text-white transition-all duration-300">
+                            <i class="ph ph-github-logo text-xl"></i>
+                        </a>
+                        <a href="#" class="social-link w-12 h-12 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-soft-blue hover:text-white transition-all duration-300">
+                            <i class="ph ph-linkedin-logo text-xl"></i>
+                        </a>
+                        <a href="#" class="social-link w-12 h-12 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-soft-blue hover:text-white transition-all duration-300">
+                            <i class="ph ph-twitter-logo text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer bg-gradient-to-r from-gray-900 to-gray-800 text-white py-12 relative overflow-hidden">
+        <!-- Background Particles -->
+        <div class="absolute inset-0">
+            <div class="particle particle-1 absolute w-2 h-2 bg-soft-blue/30 rounded-full"></div>
+            <div class="particle particle-2 absolute w-1 h-1 bg-light-purple/30 rounded-full"></div>
+            <div class="particle particle-3 absolute w-3 h-3 bg-pastel-green/30 rounded-full"></div>
+        </div>
+        
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <!-- Logo & Description -->
+                <div>
+                    <div class="text-2xl font-bold bg-gradient-to-r from-soft-blue to-light-purple bg-clip-text text-transparent mb-4">
+                        CodeClarity
+                    </div>
+                    <p class="text-gray-400 mb-4">
+                        AI-powered code analysis, debugging, and translation platform for developers of all levels.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="footer-social w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-soft-blue transition-colors">
+                            <i class="ph ph-github-logo"></i>
+                        </a>
+                        <a href="#" class="footer-social w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-soft-blue transition-colors">
+                            <i class="ph ph-linkedin-logo"></i>
+                        </a>
+                        <a href="#" class="footer-social w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-soft-blue transition-colors">
+                            <i class="ph ph-twitter-logo"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#home" class="text-gray-400 hover:text-white transition-colors">Home</a></li>
+                        <li><a href="#services" class="text-gray-400 hover:text-white transition-colors">Services</a></li>
+                        <li><a href="#about" class="text-gray-400 hover:text-white transition-colors">About</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-white transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Features -->
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Features</h4>
+                    <ul class="space-y-2">
+                        <li><span class="text-gray-400">Code Analysis</span></li>
+                        <li><span class="text-gray-400">Bug Detection</span></li>
+                        <li><span class="text-gray-400">Language Translation</span></li>
+                        <li><span class="text-gray-400">AI-Powered Insights</span></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Copyright -->
+            <div class="border-t border-gray-700 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 CodeClarity. All rights reserved. Built with ❤️ for developers.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/animations.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

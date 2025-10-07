@@ -1,0 +1,791 @@
+const express = require('express');
+const OpenAI = require('openai');
+const { optionalAuth } = require('../middleware/auth');
+const User = require('../models/user');
+
+const router = express.Router();
+
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Prompts for different operations
+const prompts = {
+  analyze: `You are a code explainer. Break the code into logical blocks and explain each in simple language.
+
+Output JSON format:
+{
+  "analysis": [
+    { "line": "<code line>", "explanation": "<clear explanation>" }
+  ],
+  "summary": "<overall summary of what the code does>",
+  "complexity": "<beginner/intermediate/advanced>",
+  "suggestions": ["<improvement suggestion 1>", "<improvement suggestion 2>"]
+}`,
+
+  debug: `You are a code debugger. Find errors, potential issues, and suggest fixes.
+
+Output JSON format:
+{
+  "issues": [
+    { 
+      "line": "<code line>", 
+      "issue": "<problem description>", 
+      "severity": "<low/medium/high>",
+      "fixSuggestion": "<how to fix it>" 
+  "summary": "<overall code health assessment>",
+  "bestPractices": ["<best practice 1>", "<best practice 2>"]
+}`,
+
+  translate: (inputCode, sourceLang, targetLang) => `You are a universal code translator.
+
+INPUT:
+- Source language: ${sourceLang}
+- Target language: ${targetLang}
+- Code to translate:
+\`\`\`${sourceLang}
+${inputCode}
+\`\`\`
+
+TASK:
+1. Translate the code into fully runnable ${targetLang}.
+2. Do NOT output TODOs, comments, or placeholders — only real code.
+3. Use idiomatic ${targetLang} conventions.
+   - Example: JS console.log → C++ std::cout
+   - Example: JS arrays → C++ vectors
+   - Example: Python lists → Java ArrayLists
+4. Preserve all logic and functionality.
+5. Return only the translated code, wrapped in JSON:
+
+\`\`\`json
+{
+  "language": "${targetLang}",
+  "translatedCode": "<fully runnable code in ${targetLang}>"
+  // Check if we have a valid API key
+  if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-test-demo-key-for-testing') {
+    console.log('Using demo mode - no valid API key provided');
+    return getDemoResponse(prompt, code, language, targetLanguage);
+  }
+
+  try {
+    const systemPrompt = prompt;
+    const userPrompt = targetLanguage 
+      ? `Language: ${language}\nTarget Language: ${targetLanguage}\nCode:\n${code}`
+      : `Language: ${language}\nCode:\n${code}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    const response = completion.choices[0].message.content;
+    
+    // Try to parse as JSON, fallback to text response
+    try {
+      return JSON.parse(response);
+    } catch (parseError) {
+      return { error: "Failed to parse AI response", rawResponse: response };
+    }
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    console.log('Falling back to demo mode');
+    return getDemoResponse(prompt, code, language, targetLanguage);
+  }
+}
+
+// Demo response function for testing
+function getDemoResponse(prompt, code, language, targetLanguage = null) {
+  if (prompt.includes('code explainer')) {
+    // Enhanced Analysis response with detailed explanations
+    const lines = code.split('\n').filter(line => line.trim());
+    const analysisItems = [];
+    
+    // Analyze each line with more detail
+    lines.forEach((line, index) => {
+      let explanation = '';
+      const trimmedLine = line.trim();
+      
+      if (trimmedLine.includes('function') || trimmedLine.includes('def ') || trimmedLine.includes('public ') || trimmedLine.includes('private ')) {
+        explanation = `This line defines a function or method. In ${language}, this creates a reusable block of code that can be called with parameters.`;
+      } else if (trimmedLine.includes('console.log') || trimmedLine.includes('print(') || trimmedLine.includes('System.out')) {
+        explanation = `This is an output statement that displays information to the console/terminal. It's commonly used for debugging and showing results.`;
+      } else if (trimmedLine.includes('var ') || trimmedLine.includes('let ') || trimmedLine.includes('const ') || trimmedLine.includes('=')) {
+        explanation = `This line declares and/or assigns a variable. Variables store data that can be used throughout your program.`;
+      } else if (trimmedLine.includes('if ') || trimmedLine.includes('else') || trimmedLine.includes('elif')) {
+        explanation = `This is a conditional statement that executes different code based on whether a condition is true or false.`;
+      } else if (trimmedLine.includes('for ') || trimmedLine.includes('while ') || trimmedLine.includes('forEach')) {
+        explanation = `This is a loop structure that repeats code execution. Loops are essential for processing collections of data or repeating operations.`;
+      } else if (trimmedLine.includes('import ') || trimmedLine.includes('require(') || trimmedLine.includes('#include') || trimmedLine.includes('using ')) {
+        explanation = `This line imports external libraries or modules, allowing you to use pre-built functionality in your code.`;
+      } else if (trimmedLine.includes('class ') || trimmedLine.includes('struct ')) {
+        explanation = `This defines a class or structure - a blueprint for creating objects with properties and methods.`;
+      } else if (trimmedLine.includes('return ')) {
+        explanation = `This return statement sends a value back from a function to wherever it was called from.`;
+      } else if (trimmedLine.includes('//') || trimmedLine.includes('#') || trimmedLine.includes('/*')) {
+        explanation = `This is a comment that explains the code for human readers. Comments are ignored by the computer but help with code maintenance.`;
+      } else if (trimmedLine.includes('{') || trimmedLine.includes('}')) {
+        explanation = `These curly braces define code blocks and scope in ${language}. They group related statements together.`;
+      } else {
+        explanation = `This line contains ${language} syntax that performs a specific operation within your program's logic flow.`;
+      }
+      
+      analysisItems.push({
+        line: trimmedLine,
+        explanation: explanation
+      });
+    });
+    
+    // Add a note about demo mode
+    analysisItems.push({
+      line: "// 🔑 Demo Mode Active",
+      explanation: "This is enhanced demo analysis. For even more detailed AI-powered insights, add your OpenAI API key to the .env file."
+    });
+    
+    return {
+      analysis: analysisItems,
+      summary: `This ${language} code contains ${lines.length} lines of executable code. The program appears to use standard ${language} syntax and follows common programming patterns. The code structure suggests it's designed for ${getCodePurpose(code, language)}.`,
+      complexity: determineComplexity(code),
+      suggestions: getDetailedSuggestions(code, language)
+    };
+  } else if (prompt.includes('code debugger')) {
+    // Enhanced Debug response with actual code fixes
+    const issues = [];
+    const fixes = [];
+    const lines = code.split('\n');
+    
+    // Check for common issues and provide actual fixes
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      const lineNumber = index + 1;
+      
+      // JavaScript-specific fixes
+      if (language === 'JavaScript') {
+        // Fix var declarations
+        if (trimmedLine.includes('var ')) {
+          const fixedLine = trimmedLine.replace(/var /g, 'const ');
+          issues.push({
+            line: `Line ${lineNumber}: ${trimmedLine}`,
+            issue: "Using 'var' can lead to scoping issues and hoisting problems",
+            severity: "medium",
+            fixSuggestion: `Replace with: ${fixedLine}`,
+            fixedCode: fixedLine
+          });
+          fixes.push({
+            original: trimmedLine,
+            fixed: fixedLine,
+            reason: "Better variable scoping with const/let"
+          });
+        }
+        
+        // Fix loose equality
+        if (trimmedLine.includes('==') && !trimmedLine.includes('===')) {
+          const fixedLine = trimmedLine.replace(/==/g, '===').replace(/!=/g, '!==');
+          issues.push({
+            line: `Line ${lineNumber}: ${trimmedLine}`,
+            issue: "Loose equality (==) can cause unexpected type coercion",
+            severity: "medium",
+            fixSuggestion: `Replace with: ${fixedLine}`,
+            fixedCode: fixedLine
+          });
+          fixes.push({
+            original: trimmedLine,
+            fixed: fixedLine,
+            reason: "Strict equality prevents type coercion bugs"
+          });
+        }
+        
+        // Fix missing semicolons
+        if (!trimmedLine.endsWith(';') && !trimmedLine.endsWith('{') && !trimmedLine.endsWith('}') && 
+            !trimmedLine.startsWith('//') && !trimmedLine.startsWith('/*') && trimmedLine.length > 0 &&
+            !trimmedLine.includes('if ') && !trimmedLine.includes('else') && !trimmedLine.includes('for ') && 
+            !trimmedLine.includes('while ') && !trimmedLine.includes('function')) {
+          const fixedLine = trimmedLine + ';';
+          issues.push({
+            line: `Line ${lineNumber}: ${trimmedLine}`,
+            issue: "Missing semicolon - can cause ASI (Automatic Semicolon Insertion) issues",
+            severity: "low",
+            fixSuggestion: `Add semicolon: ${fixedLine}`,
+            fixedCode: fixedLine
+          });
+        }
+        
+        // Fix console.log statements
+        if (trimmedLine.includes('console.log')) {
+          issues.push({
+            line: `Line ${lineNumber}: ${trimmedLine}`,
+            issue: "Console.log statements should be removed in production",
+            severity: "low",
+            fixSuggestion: "Remove this line or replace with proper logging: // " + trimmedLine,
+            fixedCode: "// " + trimmedLine + " // TODO: Remove debug statement"
+          });
+        }
+      }
+      
+      // Python-specific fixes
+      if (language === 'Python') {
+        if (trimmedLine.includes('print(') && !trimmedLine.includes('# DEBUG')) {
+          issues.push({
+            line: `Line ${lineNumber}: ${trimmedLine}`,
+            issue: "Print statements should be removed or replaced with logging",
+            severity: "low",
+            fixSuggestion: "Replace with logging: import logging; logging.info(...)",
+            fixedCode: `# ${trimmedLine}  # TODO: Replace with proper logging`
+          });
+        }
+      }
+      
+      // General issues for all languages
+      if (trimmedLine.length > 120) {
+        issues.push({
+          line: `Line ${lineNumber}: ${trimmedLine.substring(0, 50)}...`,
+          issue: "Line exceeds 120 characters - affects readability",
+          severity: "low",
+          fixSuggestion: "Break into multiple lines or refactor for better readability",
+          fixedCode: "// TODO: Break this long line into multiple lines"
+        });
+      }
+      
+      if (trimmedLine.includes('TODO') || trimmedLine.includes('FIXME') || trimmedLine.includes('HACK')) {
+        issues.push({
+          line: `Line ${lineNumber}: ${trimmedLine}`,
+          issue: "Unfinished code with TODO/FIXME/HACK comments",
+          severity: "high",
+          fixSuggestion: "Complete the implementation or remove the comment",
+          fixedCode: "// Implementation needed - complete this section"
+        });
+      }
+    });
+    
+    // Check for missing error handling
+    if (!code.includes('try') && !code.includes('catch') && !code.includes('except') && code.length > 100) {
+      issues.push({
+        line: "// Overall Code Structure",
+        issue: "No error handling detected in your code",
+        severity: "medium",
+        fixSuggestion: "Add try-catch blocks around risky operations",
+        fixedCode: language === 'JavaScript' ? 
+          "try {\n  // Your risky code here\n} catch (error) {\n  console.error('Error:', error);\n}" :
+          "try:\n    # Your risky code here\nexcept Exception as e:\n    print(f'Error: {e}')"
+      });
+    }
+    
+    // Generate fixed code if we have fixes
+    let fixedCode = code;
+    fixes.forEach(fix => {
+      fixedCode = fixedCode.replace(fix.original, fix.fixed);
+    });
+    
+    // If no specific issues found, add general observations
+    if (issues.length === 0) {
+      issues.push({
+        line: "// Code Quality Check Complete ✅",
+        issue: "No obvious syntax or style issues detected",
+        severity: "info",
+        fixSuggestion: "Your code follows good practices! Consider adding unit tests and documentation.",
+        fixedCode: "// Code looks good! Add tests and documentation for production readiness."
+      });
+    }
+    
+    // Add demo mode notice
+    issues.push({
+      line: "// 🔑 Demo Mode Active",
+      issue: "This is enhanced demo debugging with basic fixes",
+      severity: "info",
+      fixSuggestion: "Add your OpenAI API key for advanced debugging including logic errors, performance issues, and security vulnerabilities",
+      fixedCode: "// Add OpenAI API key for professional AI-powered debugging"
+    });
+    
+    return {
+      issues: issues,
+      fixedCode: fixes.length > 0 ? fixedCode : null,
+      fixes: fixes,
+      summary: `Found ${issues.length - 1} potential improvements in your ${language} code. ${fixes.length > 0 ? `Generated ${fixes.length} automatic fixes.` : ''} Code complexity: ${determineComplexity(code)}. For comprehensive debugging including logic errors and security analysis, add your OpenAI API key.`,
+      bestPractices: [
+        "✅ Add comprehensive error handling with try-catch blocks",
+        "✅ Use meaningful variable and function names",
+        "✅ Add unit tests to verify functionality",
+        "✅ Follow consistent code formatting and style guidelines",
+        "✅ Add documentation comments (JSDoc, docstrings, etc.)",
+        "✅ Remove debug statements before production",
+        "✅ Use strict equality operators (=== instead of ==)",
+        "✅ Implement proper logging instead of console/print statements",
+        "🔑 Get AI-powered advanced debugging by adding your OpenAI API key"
+      ]
+    };
+  } else if (prompt.includes('code translator')) {
+    // Enhanced Translation response with actual code conversion
+    const targetLang = targetLanguage || 'Python';
+    console.log(`🔄 Translating from ${language} to ${targetLang}`);
+    
+    return translateCode(code, language, targetLang);
+  }
+  
+  return { error: "Unknown prompt type", rawResponse: "Demo mode active" };
+}
+
+// Helper function to determine code purpose
+function getCodePurpose(code, language) {
+  const lowerCode = code.toLowerCase();
+  
+  if (lowerCode.includes('api') || lowerCode.includes('fetch') || lowerCode.includes('axios') || lowerCode.includes('request')) {
+    return 'API integration or web service communication';
+  } else if (lowerCode.includes('database') || lowerCode.includes('sql') || lowerCode.includes('query')) {
+    return 'database operations and data management';
+  } else if (lowerCode.includes('ui') || lowerCode.includes('button') || lowerCode.includes('click') || lowerCode.includes('dom')) {
+    return 'user interface interactions and DOM manipulation';
+  } else if (lowerCode.includes('algorithm') || lowerCode.includes('sort') || lowerCode.includes('search')) {
+    return 'algorithmic processing and data manipulation';
+  } else if (lowerCode.includes('test') || lowerCode.includes('assert') || lowerCode.includes('expect')) {
+    return 'testing and quality assurance';
+  } else if (lowerCode.includes('class') || lowerCode.includes('object') || lowerCode.includes('method')) {
+    return 'object-oriented programming and class definitions';
+  } else {
+    return 'general programming logic and functionality';
+  }
+}
+
+// Helper function to determine complexity
+function determineComplexity(code) {
+  const lines = code.split('\n').length;
+  const functions = (code.match(/function|def |public |private /g) || []).length;
+  const loops = (code.match(/for |while |forEach/g) || []).length;
+  const conditions = (code.match(/if |else|elif|switch/g) || []).length;
+  
+  const complexityScore = lines + (functions * 2) + (loops * 3) + (conditions * 2);
+  
+  if (complexityScore < 20) return 'beginner';
+  if (complexityScore < 50) return 'intermediate';
+  return 'advanced';
+}
+
+// Helper function to get detailed suggestions
+function getDetailedSuggestions(code, language) {
+  const suggestions = [];
+  const lowerCode = code.toLowerCase();
+  
+  // Check for common improvements
+  if (!lowerCode.includes('//') && !lowerCode.includes('#') && !lowerCode.includes('/*')) {
+    suggestions.push('Add comments to explain complex logic and improve code maintainability');
+  }
+  
+  if (lowerCode.includes('console.log') || lowerCode.includes('print(')) {
+    suggestions.push('Consider using proper logging frameworks instead of console output for production code');
+  }
+  
+  if (!lowerCode.includes('try') && !lowerCode.includes('catch') && !lowerCode.includes('except')) {
+    suggestions.push('Add error handling with try-catch blocks to make your code more robust');
+  }
+  
+  if (language === 'JavaScript' && !lowerCode.includes('const') && !lowerCode.includes('let')) {
+    suggestions.push('Use const and let instead of var for better variable scoping in modern JavaScript');
+  }
+  
+  if (code.split('\n').length > 20) {
+    suggestions.push('Consider breaking this code into smaller, more focused functions for better readability');
+  }
+  
+  suggestions.push('Add unit tests to ensure your code works correctly and prevent regressions');
+  suggestions.push('Consider code formatting and linting tools to maintain consistent style');
+  
+  // Add API key suggestion
+  suggestions.push('🔑 For AI-powered detailed analysis, add your OpenAI API key to get professional insights');
+  
+  return suggestions;
+}
+
+// Enhanced code translation function
+function translateCode(code, fromLang, toLang) {
+  console.log(`🔄 Translating from ${fromLang} to ${toLang}`);
+  
+  const translations = {
+    // JavaScript to other languages
+    'JavaScript': {
+      'Python': translateJSToPython,
+      'Java': translateJSToJava,
+      'C++': translateJSToCpp,
+      'C#': translateJSToCSharp,
+      'TypeScript': translateJSToTS
+    },
+    // Python to other languages
+    'Python': {
+      'JavaScript': translatePythonToJS,
+      'Java': translatePythonToJava,
+      'C++': translatePythonToCpp,
+      'C#': translatePythonToCSharp
+    }
+  };
+  
+  // Check if we have a specific translator
+  if (translations[fromLang] && translations[fromLang][toLang]) {
+    return translations[fromLang][toLang](code);
+  }
+  
+  // Generic translation fallback
+  return genericTranslation(code, fromLang, toLang);
+}
+
+// JavaScript to Python translation
+function translateJSToPython(code) {
+  let translated = code;
+  
+  // Basic syntax translations
+  translated = translated.replace(/console\.log\(/g, 'print(');
+  translated = translated.replace(/let\s+(\w+)\s*=/g, '$1 =');
+  translated = translated.replace(/const\s+(\w+)\s*=/g, '$1 =');
+  translated = translated.replace(/var\s+(\w+)\s*=/g, '$1 =');
+  translated = translated.replace(/function\s+(\w+)\s*\(/g, 'def $1(');
+  translated = translated.replace(/===|==/g, '==');
+  translated = translated.replace(/!==|!=/g, '!=');
+  translated = translated.replace(/&&/g, ' and ');
+  translated = translated.replace(/\|\|/g, ' or ');
+  translated = translated.replace(/!/g, ' not ');
+  translated = translated.replace(/true/g, 'True');
+  translated = translated.replace(/false/g, 'False');
+  translated = translated.replace(/null/g, 'None');
+  translated = translated.replace(/undefined/g, 'None');
+  
+  // Control structures
+  translated = translated.replace(/if\s*\(/g, 'if ');
+  translated = translated.replace(/else\s*if\s*\(/g, 'elif ');
+  translated = translated.replace(/for\s*\(\s*let\s+(\w+)\s*=\s*0;\s*\1\s*<\s*(.+?);\s*\1\+\+\s*\)/g, 'for $1 in range($2)');
+  translated = translated.replace(/while\s*\(/g, 'while ');
+  
+  // Remove semicolons and adjust braces
+  translated = translated.replace(/;/g, '');
+  translated = translated.replace(/\s*{\s*/g, ':\n    ');
+  translated = translated.replace(/\s*}\s*/g, '\n');
+  
+  return {
+    language: 'Python',
+    translatedCode: `# Translated from JavaScript to Python\n${translated}`,
+    dependencies: ['python3'],
+    notes: 'JavaScript to Python translation with syntax conversion. Manual adjustments may be needed for complex logic.'
+  };
+}
+
+// Python to JavaScript translation
+function translatePythonToJS(code) {
+  let translated = code;
+  
+  // Basic syntax translations
+  translated = translated.replace(/print\(/g, 'console.log(');
+  translated = translated.replace(/def\s+(\w+)\s*\(/g, 'function $1(');
+  translated = translated.replace(/True/g, 'true');
+  translated = translated.replace(/False/g, 'false');
+  translated = translated.replace(/None/g, 'null');
+  translated = translated.replace(/ and /g, ' && ');
+  translated = translated.replace(/ or /g, ' || ');
+  translated = translated.replace(/ not /g, ' !');
+  
+  // Control structures
+  translated = translated.replace(/if\s+(.+?):/g, 'if ($1) {');
+  translated = translated.replace(/elif\s+(.+?):/g, '} else if ($1) {');
+  translated = translated.replace(/else:/g, '} else {');
+  translated = translated.replace(/for\s+(\w+)\s+in\s+range\((\d+)\):/g, 'for (let $1 = 0; $1 < $2; $1++) {');
+  translated = translated.replace(/while\s+(.+?):/g, 'while ($1) {');
+  
+  // Add semicolons and closing braces
+  const lines = translated.split('\n');
+  let result = [];
+  let indentLevel = 0;
+  
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (trimmed) {
+      if (trimmed.endsWith('{')) {
+        result.push('    '.repeat(indentLevel) + trimmed);
+        indentLevel++;
+      } else if (trimmed === '}') {
+        indentLevel--;
+        result.push('    '.repeat(indentLevel) + trimmed);
+      } else {
+        result.push('    '.repeat(indentLevel) + trimmed + ';');
+      }
+    }
+  }
+  
+  // Add final closing braces
+  while (indentLevel > 0) {
+    indentLevel--;
+    result.push('    '.repeat(indentLevel) + '}');
+  }
+  
+  return {
+    language: 'JavaScript',
+    translatedCode: `// Translated from Python to JavaScript\n${result.join('\n')}`,
+    dependencies: ['node.js'],
+    notes: 'Python to JavaScript translation with syntax conversion. Manual adjustments may be needed for complex logic.'
+  };
+}
+
+// JavaScript to TypeScript translation
+function translateJSToTS(code) {
+  let translated = code;
+  
+  // Add basic type annotations
+  translated = translated.replace(/let\s+(\w+)\s*=\s*(\d+)/g, 'let $1: number = $2');
+  translated = translated.replace(/let\s+(\w+)\s*=\s*"([^"]*)"/g, 'let $1: string = "$2"');
+  translated = translated.replace(/let\s+(\w+)\s*=\s*'([^']*)'/g, 'let $1: string = \'$2\'');
+  translated = translated.replace(/let\s+(\w+)\s*=\s*(true|false)/g, 'let $1: boolean = $2');
+  translated = translated.replace(/const\s+(\w+)\s*=\s*(\d+)/g, 'const $1: number = $2');
+  translated = translated.replace(/const\s+(\w+)\s*=\s*"([^"]*)"/g, 'const $1: string = "$2"');
+  translated = translated.replace(/const\s+(\w+)\s*=\s*'([^']*)'/g, 'const $1: string = \'$2\'');
+  translated = translated.replace(/const\s+(\w+)\s*=\s*(true|false)/g, 'const $1: boolean = $2');
+  
+  return {
+    language: 'TypeScript',
+    translatedCode: `// Translated from JavaScript to TypeScript\n${translated}`,
+    dependencies: ['typescript', '@types/node'],
+    notes: 'JavaScript to TypeScript translation with basic type annotations. Consider adding interfaces and more specific types.'
+  };
+}
+
+// Generic translation fallback
+function genericTranslation(code, fromLang, toLang) {
+  const languageTemplates = {
+    'Python': {
+      template: `# Translated from ${fromLang} to Python\n# Original code structure:\n${code.split('\n').map(line => `# ${line}`).join('\n')}\n\n# Python equivalent (implementation needed):\nprint("Translation from ${fromLang} to Python")\n# TODO: Implement the logic above`,
+      dependencies: ['python3'],
+      fileExt: '.py'
+    },
+    'JavaScript': {
+      template: `// Translated from ${fromLang} to JavaScript\n// Original code structure:\n${code.split('\n').map(line => `// ${line}`).join('\n')}\n\n// JavaScript equivalent (implementation needed):\nconsole.log("Translation from ${fromLang} to JavaScript");\n// TODO: Implement the logic above`,
+      dependencies: ['node.js'],
+      fileExt: '.js'
+    },
+    'Java': {
+      template: `// Translated from ${fromLang} to Java\npublic class TranslatedCode {\n    public static void main(String[] args) {\n        // Original code structure:\n${code.split('\n').map(line => `        // ${line}`).join('\n')}\n        \n        // Java equivalent (implementation needed):\n        System.out.println("Translation from ${fromLang} to Java");\n        // TODO: Implement the logic above\n    }\n}`,
+      dependencies: ['openjdk-11'],
+      fileExt: '.java'
+    },
+    'C++': {
+      template: `// Translated from ${fromLang} to C++\n#include <iostream>\nusing namespace std;\n\nint main() {\n    // Original code structure:\n${code.split('\n').map(line => `    // ${line}`).join('\n')}\n    \n    // C++ equivalent (implementation needed):\n    cout << "Translation from ${fromLang} to C++" << endl;\n    // TODO: Implement the logic above\n    return 0;\n}`,
+      dependencies: ['g++', 'build-essential'],
+      fileExt: '.cpp'
+    },
+    'C#': {
+      template: `// Translated from ${fromLang} to C#\nusing System;\n\nclass Program {\n    static void Main() {\n        // Original code structure:\n${code.split('\n').map(line => `        // ${line}`).join('\n')}\n        \n        // C# equivalent (implementation needed):\n        Console.WriteLine("Translation from ${fromLang} to C#");\n        // TODO: Implement the logic above\n    }\n}`,
+      dependencies: ['.NET Core SDK'],
+      fileExt: '.cs'
+    }
+  };
+  
+  const template = languageTemplates[toLang];
+  if (!template) {
+    return {
+      language: toLang,
+      translatedCode: `// Translation from ${fromLang} to ${toLang}\n// Original code:\n${code.split('\n').map(line => `// ${line}`).join('\n')}\n\n// Manual implementation required for ${toLang}`,
+      dependencies: ['Manual setup required'],
+      notes: `Translation from ${fromLang} to ${toLang} requires manual implementation. The original code structure is preserved as comments.`
+    };
+  }
+  
+  return {
+    language: toLang,
+    translatedCode: template.template,
+    dependencies: template.dependencies,
+    notes: `Template-based translation from ${fromLang} to ${toLang}. Manual implementation of logic is required. Add your OpenAI API key for intelligent translation.`
+  };
+}
+
+// Additional translation functions (using generic fallback)
+function translateJSToJava(code) { return genericTranslation(code, 'JavaScript', 'Java'); }
+function translateJSToCpp(code) { return genericTranslation(code, 'JavaScript', 'C++'); }
+function translateJSToCSharp(code) { return genericTranslation(code, 'JavaScript', 'C#'); }
+function translatePythonToJava(code) { return genericTranslation(code, 'Python', 'Java'); }
+function translatePythonToCpp(code) { return genericTranslation(code, 'Python', 'C++'); }
+function translatePythonToCSharp(code) { return genericTranslation(code, 'Python', 'C#'); }
+
+// @route   POST /api/analyze
+// @desc    Analyze code and provide explanations
+// @access  Public (with optional auth)
+router.post('/analyze', optionalAuth, async (req, res) => {
+  try {
+    const { code, language } = req.body;
+
+    if (!code || !language) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code and language are required'
+      });
+    }
+
+    if (code.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code is too long. Maximum 10,000 characters allowed.'
+      });
+    }
+
+    const result = await callOpenAI(prompts.analyze, code, language);
+
+    // Save to user session if authenticated
+    if (req.user) {
+      User.addSession(req.user.id, {
+        type: 'analyze',
+        code,
+        language,
+        result
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Analyze error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to analyze code'
+    });
+  }
+});
+
+// @route   POST /api/debug
+// @desc    Debug code and find issues
+// @access  Public (with optional auth)
+router.post('/debug', optionalAuth, async (req, res) => {
+  try {
+    const { code, language } = req.body;
+
+    if (!code || !language) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code and language are required'
+      });
+    }
+
+    if (code.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code is too long. Maximum 10,000 characters allowed.'
+      });
+    }
+
+    const result = await callOpenAI(prompts.debug, code, language);
+
+    // Save to user session if authenticated
+    if (req.user) {
+      User.addSession(req.user.id, {
+        type: 'debug',
+        code,
+        language,
+        result
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to debug code'
+    });
+  }
+});
+
+// @route   POST /api/translate
+// @desc    Translate code between languages
+// @access  Public (with optional auth)
+router.post('/translate', optionalAuth, async (req, res) => {
+  try {
+    const { code, sourceLang, targetLang } = req.body;
+
+    if (!code || !sourceLang || !targetLang) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code, source language, and target language are required'
+      });
+    }
+
+    if (code.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code is too long. Maximum 10,000 characters allowed.'
+      });
+    }
+
+    const result = await callOpenAI(prompts.translate, code, sourceLang, targetLang);
+
+    // Save to user session if authenticated
+    if (req.user) {
+      User.addSession(req.user.id, {
+        type: 'translate',
+        code,
+        sourceLang,
+        targetLang,
+        result
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Translate error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to translate code'
+    });
+  }
+});
+
+// @route   GET /api/languages
+// @desc    Get supported programming languages
+// @access  Public
+router.get('/languages', (req, res) => {
+  const languages = [
+    'JavaScript',
+    'Python',
+    'Java',
+    'C++',
+    'C#',
+    'PHP',
+    'Ruby',
+    'Go',
+    'Rust',
+    'Swift',
+    'Kotlin',
+    'TypeScript',
+    'HTML',
+    'CSS',
+    'SQL',
+    'R',
+    'MATLAB',
+    'Scala',
+    'Perl',
+    'Lua'
+  ];
+
+  res.json({
+    success: true,
+    data: languages
+  });
+});
+
+// @route   GET /api/health
+// @desc    Health check endpoint
+// @access  Public
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+module.exports = router;
