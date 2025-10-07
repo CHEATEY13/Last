@@ -9,6 +9,14 @@ require('dotenv').config();
 console.log('🔍 Environment Variables Check:');
 console.log('- GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? `${process.env.GEMINI_API_KEY.substring(0, 20)}... (${process.env.GEMINI_API_KEY.length} chars)` : 'NOT SET');
 console.log('- OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 20)}... (${process.env.OPENAI_API_KEY.length} chars)` : 'NOT SET');
+console.log('- JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
+console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
+
+// Set default JWT_SECRET if not provided (for development/demo purposes)
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'default-jwt-secret-for-demo-only-change-in-production';
+  console.log('⚠️  Using default JWT_SECRET for demo purposes');
+}
 
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
