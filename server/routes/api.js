@@ -7,13 +7,33 @@ const axios = require('axios');
 
 const router = express.Router();
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI (with error handling)
+let openai = null;
+try {
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    console.log('✅ OpenAI initialized successfully');
+  } else {
+    console.log('⚠️ OpenAI not initialized - no valid API key');
+  }
+} catch (error) {
+  console.log('❌ OpenAI initialization failed:', error.message);
+}
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'demo-key');
+// Initialize Gemini AI (with error handling)
+let genAI = null;
+try {
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    console.log('✅ Gemini AI initialized successfully');
+  } else {
+    console.log('⚠️ Gemini AI not initialized - no valid API key');
+  }
+} catch (error) {
+  console.log('❌ Gemini AI initialization failed:', error.message);
+}
 
 // Hugging Face API configuration
 const HF_API_URL = 'https://api-inference.huggingface.co/models';
@@ -94,11 +114,11 @@ Respond with ONLY this JSON structure (no additional text):
 
 // Helper function to call OpenAI (with demo fallback)
 async function callOpenAI(prompt, code, language, targetLanguage = null) {
-  // Check if we have a valid API key
-  if (!process.env.OPENAI_API_KEY || 
+  // Check if we have a valid API key and initialized OpenAI
+  if (!openai || !process.env.OPENAI_API_KEY || 
       process.env.OPENAI_API_KEY === 'sk-test-demo-key-for-testing' ||
       process.env.OPENAI_API_KEY === 'your_openai_api_key_here') {
-    console.log('Using demo mode - no valid API key provided');
+    console.log('Using demo mode - no valid API key provided or OpenAI not initialized');
     return getDemoResponse(prompt, code, language, targetLanguage);
   }
 
@@ -251,15 +271,16 @@ async function callGeminiDebug(code, language) {
   // Debug logging for API key
   console.log('🔍 GEMINI_API_KEY check:', {
     exists: !!process.env.GEMINI_API_KEY,
+    initialized: !!genAI,
     value: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 20) + '...' : 'undefined',
     length: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0
   });
   
-  // Check if we have a valid API key
-  if (!process.env.GEMINI_API_KEY || 
+  // Check if we have a valid API key and initialized Gemini
+  if (!genAI || !process.env.GEMINI_API_KEY || 
       process.env.GEMINI_API_KEY === 'demo-key' ||
       process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
-    console.log('❌ Using demo mode for debug - no valid Gemini API key provided');
+    console.log('❌ Using demo mode for debug - no valid Gemini API key provided or Gemini not initialized');
     console.log('Current GEMINI_API_KEY value:', process.env.GEMINI_API_KEY);
     return getDebugDemoResponse(code, language);
   }
